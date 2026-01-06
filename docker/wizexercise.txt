@@ -1,0 +1,52 @@
+===============================================
+WIZ TECHNICAL EXERCISE VERIFICATION FILE
+===============================================
+
+Candidate Name: John Teagle 
+Exercise Version: v4
+Date: January 2026
+Repository: https://github.com/jotea3030/wiz
+
+This file verifies that the container image was
+properly built and deployed as part of the Wiz
+technical exercise requirements.
+
+To verify this file exists in the running container:
+
+kubectl exec <pod-name> -- cat /app/wizexercise.txt
+
+===============================================
+ARCHITECTURE OVERVIEW
+===============================================
+
+This deployment demonstrates:
+✓ Two-tier web application (Golang + MongoDB)
+✓ Kubernetes orchestration with GKE
+✓ Infrastructure as Code with Terraform
+✓ CI/CD pipeline with GitHub Actions
+✓ Intentional security misconfigurations
+✓ Cloud security monitoring with Wiz
+
+===============================================
+KEY COMPONENTS
+===============================================
+
+Frontend:
+- Golang Todo application
+- Containerized with Docker
+- Deployed on GKE private cluster
+- Exposed via NGINX Ingress
+
+Database:
+- MongoDB 4.4.x (intentionally outdated)
+- Running on Ubuntu 20.04 VM
+- Automated daily backups to GCS
+
+Security Findings:
+- SSH exposed to internet (0.0.0.0/0)
+- Public GCS bucket with backups
+- Overly permissive IAM roles
+- Cluster-admin Kubernetes permissions
+- Outdated software versions
+
+===============================================

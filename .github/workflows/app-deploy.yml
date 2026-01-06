@@ -1,0 +1,226 @@
+name: Build and Deploy Application
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'docker/**'
+      - 'helm/**'
+      - '.github/workflows/app-deploy.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'docker/**'
+      - 'helm/**'
+  workflow_dispatch:
+
+env:
+  GCP_REGION: 'us-central1'
+  GKE_CLUSTER: 'wiz-exercise-gke-cluster'
+  DOCKER_REPO: 'wiz-exercise-docker-repo'
+  IMAGE_NAME: 'todo-app'
+
+jobs:
+  build:
+    name: 'Build and Scan Container'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup gcloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    - name: Configure Docker for GCP
+      run: |
+        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+    - name: Build Docker image
+      run: |
+        cd docker
+        docker build \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:latest \
+          -f Dockerfile \
+          ../app
+
+    - name: Verify wizexercise.txt in image
+      run: |
+        docker run --rm \
+          ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          cat /app/wizexercise.txt
+
+    - name: Wiz Container Scan
+      uses: wiz-sec/wiz-cli-container-scan-action@v1
+      if: github.event_name == 'pull_request'
+      with:
+        image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        policy: 'Default Container Policy'
+      env:
+        WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+        WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
+      continue-on-error: true
+
+    - name: Trivy vulnerability scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+      continue-on-error: true
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true
+
+    - name: Push Docker image
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+  deploy:
+    name: 'Deploy to GKE'
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup gcloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        install_components: 'gke-gcloud-auth-plugin'
+
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+          --region ${{ env.GCP_REGION }} \
+          --project ${{ secrets.GCP_PROJECT_ID }}
+
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: '3.12.0'
+
+    - name: Install NGINX Ingress Controller
+      run: |
+        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+        helm repo update
+        
+        # Install or upgrade NGINX Ingress
+        helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+          --namespace ingress-nginx \
+          --create-namespace \
+          --set controller.service.type=LoadBalancer \
+          --set controller.metrics.enabled=true \
+          --wait
+
+    - name: Get Terraform outputs (MongoDB IP)
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform-outputs
+        path: ./terraform-outputs
+      continue-on-error: true
+
+    - name: Extract MongoDB IP
+      id: mongodb
+      run: |
+        if [ -f ./terraform-outputs/terraform-outputs.json ]; then
+          MONGODB_IP=$(cat ./terraform-outputs/terraform-outputs.json | jq -r '.mongodb_vm_internal_ip.value')
+        else
+          # Fallback: query GCP for the instance
+          MONGODB_IP=$(gcloud compute instances describe wiz-exercise-mongodb-vm \
+            --zone=us-central1-a \
+            --format='get(networkInterfaces[0].networkIP)')
+        fi
+        echo "mongodb_ip=$MONGODB_IP" >> $GITHUB_OUTPUT
+
+    - name: Deploy application with Helm
+      run: |
+        helm upgrade --install todo-app ./helm/todo-app \
+          --namespace default \
+          --create-namespace \
+          --set image.repository=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }} \
+          --set image.tag=${{ github.sha }} \
+          --set mongodb.host=${{ steps.mongodb.outputs.mongodb_ip }} \
+          --set mongodb.password=${{ secrets.MONGODB_PASSWORD }} \
+          --set jwt.secret=${{ secrets.JWT_SECRET }} \
+          --wait \
+          --timeout 5m
+
+    - name: Wait for deployment
+      run: |
+        kubectl rollout status deployment/todo-app --timeout=5m
+
+    - name: Verify wizexercise.txt in running pod
+      run: |
+        POD_NAME=$(kubectl get pods -l app=todo-app -o jsonpath='{.items[0].metadata.name}')
+        echo "Verifying wizexercise.txt in pod: $POD_NAME"
+        kubectl exec $POD_NAME -- cat /app/wizexercise.txt
+
+    - name: Get Ingress IP
+      id: ingress
+      run: |
+        echo "Waiting for Ingress IP..."
+        for i in {1..60}; do
+          INGRESS_IP=$(kubectl get ingress todo-app -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          if [ ! -z "$INGRESS_IP" ]; then
+            echo "ingress_ip=$INGRESS_IP" >> $GITHUB_OUTPUT
+            echo "Application accessible at: http://$INGRESS_IP"
+            break
+          fi
+          sleep 5
+        done
+
+    - name: Display deployment info
+      run: |
+        echo "=== Deployment Summary ==="
+        echo "Namespace: default"
+        echo "Release: todo-app"
+        echo "Image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        echo ""
+        echo "=== Pods ==="
+        kubectl get pods -l app=todo-app
+        echo ""
+        echo "=== Services ==="
+        kubectl get svc todo-app
+        echo ""
+        echo "=== Ingress ==="
+        kubectl get ingress todo-app
+        echo ""
+        if [ ! -z "${{ steps.ingress.outputs.ingress_ip }}" ]; then
+          echo "Application URL: http://${{ steps.ingress.outputs.ingress_ip }}"
+        fi
+
+    - name: Run Wiz Kubernetes Scan
+      uses: wiz-sec/wiz-cli-k8s-scan-action@v1
+      with:
+        kubeconfig: ${{ steps.auth.outputs.kubeconfig_path }}
+      env:
+        WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+        WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
+      continue-on-error: true

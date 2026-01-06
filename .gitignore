@@ -1,0 +1,319 @@
+# ============================================
+# Wiz Technical Exercise - .gitignore
+# ============================================
+
+# ============================================
+# SECRETS AND CREDENTIALS (CRITICAL!)
+# ============================================
+# Never commit passwords, keys, or sensitive data
+*.tfvars
+!terraform.tfvars.example
+*.env
+.env*
+*-key.json
+*_key.json
+credentials.json
+secrets.yaml
+secrets.yml
+*secret*
+*password*
+cookies.txt
+
+# Service account keys
+*.pem
+*.key
+id_rsa*
+*.p12
+
+# Terraform state files (contain sensitive data)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+terraform.tfstate.d/
+
+# ============================================
+# TERRAFORM
+# ============================================
+# Terraform directories
+.terraform/
+.terraform.lock.hcl
+**/.terraform/*
+./terraform/.terraform/providers/*
+
+# Terraform plans
+*.tfplan
+tfplan
+plan.out
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration
+.terraformrc
+terraform.rc
+
+# Terraform output files
+terraform-outputs.json
+outputs.json
+
+# ============================================
+# KUBERNETES & HELM
+# ============================================
+# Helm dependencies and charts
+helm/*/charts/
+**/charts/*.tgz
+
+# Helm release files
+*.lock
+
+# Kubeconfig files
+kubeconfig
+*.kubeconfig
+config.yaml
+kube-config*
+
+# Kubernetes secrets
+k8s-secrets.yaml
+
+# ============================================
+# DOCKER
+# ============================================
+# Docker build artifacts
+.dockerignore
+
+# Docker Compose
+docker-compose.override.yml
+
+# ============================================
+# GO / APPLICATION
+# ============================================
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Vendor directory (if using vendor mode)
+vendor/
+
+# Binary output
+main
+app
+todo-app
+
+# ============================================
+# LOGS
+# ============================================
+*.log
+logs/
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================
+# OPERATING SYSTEM FILES
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# IDE / EDITOR
+# ============================================
+# JetBrains IDEs (IntelliJ, GoLand, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*.swn
+*~
+.*.sw?
+Session.vim
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ============================================
+# TEMPORARY FILES
+# ============================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# Cache directories
+.cache/
+__pycache__/
+*.py[cod]
+
+# ============================================
+# BUILD ARTIFACTS
+# ============================================
+dist/
+build/
+out/
+target/
+*.zip
+*.tar.gz
+*.tgz
+*.tar
+*.gz
+*.7z
+*.rar
+
+# ============================================
+# NODE (if using any JS tools)
+# ============================================
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# ============================================
+# PYTHON (if using any Python tools)
+# ============================================
+*.pyc
+*.pyo
+*.pyd
+.Python
+__pycache__/
+venv/
+env/
+ENV/
+
+# ============================================
+# BACKUP & ARCHIVES
+# ============================================
+*.sql
+*.dump
+*.backup
+backup-*.gz
+mongodb-backup-*.gz
+
+# ============================================
+# PROJECT-SPECIFIC
+# ============================================
+# Keep repomix outputs out (they're large)
+repomix-output*.xml
+
+# Local testing scripts
+test-local.sh
+scratch.sh
+notes.txt
+TODO.txt
+NOTES.md
+
+# Local terraform backend overrides
+backend-override.tf
+
+# Downloaded dependencies
+downloads/
+
+# ============================================
+# CI/CD
+# ============================================
+# GitHub Actions local testing
+.github/workflows/local/
+
+# ============================================
+# ALLOW IMPORTANT FILES
+# ============================================
+# These files should always be committed
+!.gitignore
+!*.example
+!*.template
+!.github/workflows/*.yml
+!.github/workflows/*.yaml
+!terraform/terraform.tfvars.example
+!docker/wizexercise.txt
+
+# ============================================
+# DOCUMENTATION (KEEP THESE)
+# ============================================
+!README.md
+!docs/**/*.md
+!*.md
+!LICENSE
+
+# ============================================
+# NOTES
+# ============================================
+# This .gitignore is designed for the Wiz Technical Exercise
+# 
+# Security reminders:
+# - Never commit passwords or API keys
+# - Never commit terraform.tfvars (use .example instead)
+# - Never commit service account keys
+# - Never commit .env files
+# - Review each commit for sensitive data before pushing
+#
+# To check what's being tracked:
+#   git status
+#   git ls-files
+#
+# To remove a file that was accidentally committed:
+#   git rm --cached <file>
+#   git commit -m "Remove sensitive file"
+#   git push
+#
+# Consider using git-secrets or gitleaks to prevent
+# committing sensitive data:
+#   https://github.com/awslabs/git-secrets
+#   https://github.com/gitleaks/gitleaks
