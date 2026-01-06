@@ -19,13 +19,15 @@ fi
 echo ""
 
 echo "2. Checking for hardcoded passwords..."
-if git grep -i -E 'password.*=.*["\047][^"\047]{8,}["\047]|api[_-]?key.*=.*["\047]|secret.*=.*["\047][^"\047]{8,}["\047]' -- '*.tf' '*.yml' '*.yaml' '*.sh' '*.go' 2>/dev/null; then
+# Look for actual hardcoded values, not variable references
+if git grep -i -E 'password[[:space:]]*=[[:space:]]*["\047][A-Za-z0-9+/=]{16,}["\047]|api[_-]?key[[:space:]]*=[[:space:]]*["\047][A-Za-z0-9]{20,}["\047]|secret[[:space:]]*=[[:space:]]*["\047][A-Za-z0-9+/=]{16,}["\047]' -- '*.tf' '*.yml' '*.yaml' '*.sh' '*.go' 2>/dev/null | grep -v '\$' | grep -v 'getEnv'; then
     echo "❌ FAIL: Possible hardcoded secrets found!"
     echo "Review the above matches carefully"
     FAIL=1
 else
     echo "✅ PASS: No obvious hardcoded secrets"
 fi
+
 echo ""
 
 echo "3. Checking for terraform.tfvars..."

@@ -1,0 +1,96 @@
+# Default values for todo-app
+
+replicaCount: 2
+
+image:
+  repository: us-central1-docker.pkg.dev/cloudlabsgcporg10.com/wiz-exercise-docker-repo/todo-app
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "todo-app-sa"
+
+# INTENTIONAL VULNERABILITY: Cluster-admin role
+rbac:
+  create: true
+  clusterRole: cluster-admin  # OVERLY PERMISSIVE
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false  # App needs to write logs
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: ""  # Will use load balancer IP
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# MongoDB connection settings
+mongodb:
+  host: ""  # Will be set during deployment
+  port: 27017
+  database: "go-mongodb"
+  username: "todoapp"
+  password: ""  # Will be set during deployment
+
+# JWT settings
+jwt:
+  secret: ""  # Will be set during deployment
+  expirationHours: 24
+
+# Application settings
+app:
+  port: 8080
+  environment: "production"
+  logLevel: "info"

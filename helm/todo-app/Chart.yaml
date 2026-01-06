@@ -1,0 +1,20 @@
+apiVersion: v2
+name: todo-app
+description: A Helm chart for deploying the Golang Todo application on Kubernetes
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - todo
+  - golang
+  - mongodb
+  - wiz-exercise
+
+maintainers:
+  - name: Wiz Candidate
+    email: candidate@example.com
+
+sources:
+  - https://github.com/jotea3030/wiz
+  - https://github.com/dogukanozdemir/golang-todo-mongodb
