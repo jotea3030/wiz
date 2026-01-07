@@ -1,66 +1,81 @@
-# GCS bucket for MongoDB backups (INTENTIONALLY PUBLIC - VULNERABILITY)
+# ============================================
+# Cloud Storage Configuration
+# ============================================
+
+# Random suffix for bucket name
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+# GCS Bucket for MongoDB backups
 resource "google_storage_bucket" "mongodb_backups" {
-  name          = "wiz-mongodb-backups-${random_id.suffix.hex}"
+  name          = "${var.environment}-mongodb-backups-${random_id.bucket_suffix.hex}"
   location      = var.region
   force_destroy = true
   
-  # VULNERABLE: Public access enabled
   uniform_bucket_level_access = true
   
-  # Lifecycle rules to manage costs
+  versioning {
+    enabled = true
+  }
+  
   lifecycle_rule {
     condition {
-      age = 7
+      age = 30
     }
     action {
       type = "Delete"
     }
   }
   
-  # Versioning disabled to save costs
-  versioning {
-    enabled = false
+  lifecycle_rule {
+    condition {
+      age                   = 7
+      num_newer_versions    = 3
+    }
+    action {
+      type = "Delete"
+    }
   }
   
-  # Labels
   labels = {
     environment = var.environment
     purpose     = "mongodb-backups"
     managed_by  = "terraform"
   }
-  
-  depends_on = [google_project_service.required_apis]
 }
 
-# VULNERABLE: Make bucket publicly readable
+# CONDITIONAL: Public Read Access (VULNERABLE if enabled)
 resource "google_storage_bucket_iam_member" "public_read" {
+  count  = var.enable_public_gcs_bucket ? 1 : 0
   bucket = google_storage_bucket.mongodb_backups.name
   role   = "roles/storage.objectViewer"
-  
-  # CRITICAL VULNERABILITY: Public access to database backups
   member = "allUsers"
 }
 
-# Allow listing objects (VULNERABLE)
 resource "google_storage_bucket_iam_member" "public_list" {
+  count  = var.enable_public_gcs_bucket ? 1 : 0
   bucket = google_storage_bucket.mongodb_backups.name
   role   = "roles/storage.legacyBucketReader"
-  
-  # CRITICAL VULNERABILITY: Public listing
   member = "allUsers"
 }
 
-# Container Registry for Docker images
+# SECURE: Service account access (always enabled)
+resource "google_storage_bucket_iam_member" "vm_backup_access" {
+  bucket = google_storage_bucket.mongodb_backups.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.mongodb_vm.email}"
+}
+
+# Artifact Registry for Docker images
 resource "google_artifact_registry_repository" "docker_repo" {
   location      = var.region
   repository_id = "${var.environment}-docker-repo"
-  description   = "Docker repository for todo application"
+  description   = "Docker repository for ${var.environment} environment"
   format        = "DOCKER"
   
   labels = {
     environment = var.environment
     managed_by  = "terraform"
   }
-  
-  depends_on = [google_project_service.required_apis]
 }

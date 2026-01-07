@@ -317,3 +317,4 @@ downloads/
 # committing sensitive data:
 #   https://github.com/awslabs/git-secrets
 #   https://github.com/gitleaks/gitleaks
+.env.*

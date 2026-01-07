@@ -13,19 +13,16 @@ terraform {
   }
   
   backend "gcs" {
-    bucket = "wiz-terraform-state-cloudlabsgcporg10"
+    bucket = "wiz-terraform-state-clgcporg10-158"
+    # Prefix will be set dynamically: terraform/preprod/state or terraform/prod/state
     prefix = "terraform/state"
   }
 }
 
+# Configure the Google Cloud Provider
 provider "google" {
   project = var.project_id
   region  = var.region
-}
-
-# Random suffix for unique resource names
-resource "random_id" "suffix" {
-  byte_length = 4
 }
 
 # Enable required APIs
@@ -33,11 +30,10 @@ resource "google_project_service" "required_apis" {
   for_each = toset([
     "compute.googleapis.com",
     "container.googleapis.com",
-    "iam.googleapis.com",
+    "storage.googleapis.com",
+    "artifactregistry.googleapis.com",
     "cloudresourcemanager.googleapis.com",
-    "storage-api.googleapis.com",
-    "logging.googleapis.com",
-    "monitoring.googleapis.com",
+    "iam.googleapis.com",
   ])
   
   service            = each.value

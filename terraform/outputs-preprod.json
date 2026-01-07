@@ -1,0 +1,175 @@
+{
+  "backup_bucket_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "wiz-preprod-mongodb-backups-0837c1cc"
+  },
+  "backup_bucket_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "https://storage.googleapis.com/wiz-preprod-mongodb-backups-0837c1cc/"
+  },
+  "docker_repository": {
+    "sensitive": false,
+    "type": "string",
+    "value": "us-central1-docker.pkg.dev/clgcporg10-158/wiz-preprod-docker-repo"
+  },
+  "environment": {
+    "sensitive": false,
+    "type": "string",
+    "value": "wiz-preprod"
+  },
+  "gke_cluster_endpoint": {
+    "sensitive": true,
+    "type": "string",
+    "value": "35.239.47.80"
+  },
+  "gke_cluster_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "wiz-preprod-gke-cluster"
+  },
+  "kubectl_config_command": {
+    "sensitive": false,
+    "type": "string",
+    "value": "gcloud container clusters get-credentials wiz-preprod-gke-cluster --region us-central1 --project clgcporg10-158"
+  },
+  "mongodb_connection_string": {
+    "sensitive": true,
+    "type": "string",
+    "value": "mongodb://todoapp:ois4qIZ0Yz/frDumjw3VBXLfAXbhkzU1eIC7WvGzQho=@10.0.1.2:27017/go-mongodb"
+  },
+  "mongodb_vm_external_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "34.46.142.161"
+  },
+  "mongodb_vm_internal_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "10.0.1.2"
+  },
+  "mongodb_vm_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "wiz-preprod-mongodb-vm"
+  },
+  "private_subnet_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "wiz-preprod-private-subnet"
+  },
+  "project_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "clgcporg10-158"
+  },
+  "public_subnet_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "wiz-preprod-public-subnet"
+  },
+  "region": {
+    "sensitive": false,
+    "type": "string",
+    "value": "us-central1"
+  },
+  "security_configuration": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "environment": "string",
+        "k8s_cluster_admin": "bool",
+        "mongodb_in_public_subnet": "bool",
+        "outdated_mongodb": "bool",
+        "public_gcs_bucket": "bool",
+        "ssh_allowed_ranges": [
+          "list",
+          "string"
+        ],
+        "ssh_from_internet": "bool",
+        "vm_overpermissive_iam": "bool"
+      }
+    ],
+    "value": {
+      "environment": "wiz-preprod",
+      "k8s_cluster_admin": true,
+      "mongodb_in_public_subnet": true,
+      "outdated_mongodb": true,
+      "public_gcs_bucket": true,
+      "ssh_allowed_ranges": [
+        "0.0.0.0/0"
+      ],
+      "ssh_from_internet": true,
+      "vm_overpermissive_iam": true
+    }
+  },
+  "security_findings_summary": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "critical_findings": [
+          "list",
+          "string"
+        ],
+        "high_findings": [
+          "tuple",
+          [
+            "string",
+            "string",
+            "string"
+          ]
+        ],
+        "recommendations": [
+          "tuple",
+          [
+            "string",
+            "string",
+            "string",
+            "string",
+            "string",
+            "string",
+            "string",
+            "string"
+          ]
+        ]
+      }
+    ],
+    "value": {
+      "critical_findings": [
+        "SSH exposed to 0.0.0.0/0 on MongoDB VM",
+        "GCS bucket publicly readable (database backups exposed)",
+        "MongoDB VM has compute.admin IAM role (overly permissive)",
+        "Outdated MongoDB 4.4 on Ubuntu 22.04",
+        "Database VM in public subnet with external IP"
+      ],
+      "high_findings": [
+        "Kubernetes pods assigned cluster-admin role",
+        "No network policies configured",
+        "Broad firewall rules"
+      ],
+      "recommendations": [
+        "Restrict SSH access to specific IP ranges",
+        "Remove public access from GCS bucket",
+        "Apply principle of least privilege for IAM roles",
+        "Upgrade to latest MongoDB and Ubuntu LTS versions",
+        "Move database to private subnet without external IP",
+        "Implement Kubernetes RBAC with minimal permissions",
+        "Enable and configure network policies",
+        "Implement least privilege firewall rules"
+      ]
+    }
+  },
+  "ssh_command": {
+    "sensitive": false,
+    "type": "string",
+    "value": "gcloud compute ssh wiz-preprod-mongodb-vm --zone us-central1-a --project clgcporg10-158"
+  },
+  "vpc_network_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "wiz-preprod-vpc"
+  }
+}
