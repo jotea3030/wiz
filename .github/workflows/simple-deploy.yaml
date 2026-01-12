@@ -1,0 +1,178 @@
+name: Simple Deploy - Preprod and Prod
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docker/wizexercise.txt'
+      - 'docker/Dockerfile'
+  workflow_dispatch:
+
+env:
+  GCP_REGION: 'us-central1'
+  GCP_PROJECT_ID: 'clgcporg10-158'
+
+jobs:
+  build-and-deploy:
+    name: 'Build and Deploy to Both Environments'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Install gke-gcloud-auth-plugin
+      run: |
+        gcloud components install gke-gcloud-auth-plugin --quiet
+
+    # ============================================
+    # PREPROD BUILD AND DEPLOY
+    # ============================================
+    - name: Configure Docker for Preprod
+      run: |
+        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+    - name: Build and Push Preprod Image
+      run: |
+        export DOCKER_REPO="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/wiz-preprod-docker-repo"
+        
+        cd docker
+        docker build \
+          -t ${DOCKER_REPO}/todo-app:latest \
+          -t ${DOCKER_REPO}/todo-app:${{ github.sha }} \
+          -f Dockerfile \
+          ..
+        
+        docker push ${DOCKER_REPO}/todo-app:latest
+        docker push ${DOCKER_REPO}/todo-app:${{ github.sha }}
+        
+        echo "✅ Preprod image built and pushed"
+        echo "📦 Image: ${DOCKER_REPO}/todo-app:latest"
+
+    - name: Verify wizexercise.txt in Preprod Image
+      run: |
+        export DOCKER_REPO="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/wiz-preprod-docker-repo"
+        echo "=== Preprod wizexercise.txt content ==="
+        docker run --rm ${DOCKER_REPO}/todo-app:latest cat /app/wizexercise.txt
+
+    - name: Deploy to Preprod GKE
+      run: |
+        # Get GKE credentials
+        gcloud container clusters get-credentials \
+          wiz-preprod-gke-cluster \
+          --region ${{ env.GCP_REGION }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+        
+        # Restart deployment to pull new image
+        kubectl rollout restart deployment/todo-app -n default
+        
+        # Wait for rollout to complete
+        kubectl rollout status deployment/todo-app -n default --timeout=5m
+        
+        echo "✅ Preprod deployment updated"
+
+    - name: Verify Preprod Deployment
+      run: |
+        # Get preprod credentials again to be sure
+        gcloud container clusters get-credentials \
+          wiz-preprod-gke-cluster \
+          --region ${{ env.GCP_REGION }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+        
+        echo "=== Preprod Pods ==="
+        kubectl get pods -l app=todo-app -n default
+        
+        echo "=== Preprod wizexercise.txt from running pod ==="
+        POD_NAME=$(kubectl get pods -l app=todo-app -n default -o jsonpath='{.items[0].metadata.name}')
+        kubectl exec $POD_NAME -n default -- cat /app/wizexercise.txt
+        
+        echo "=== Preprod Ingress IP ==="
+        kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+        echo ""
+
+    # ============================================
+    # PROD BUILD AND DEPLOY
+    # ============================================
+    - name: Build and Push Prod Image
+      run: |
+        export DOCKER_REPO="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/wiz-prod-docker-repo"
+        
+        cd docker
+        docker build \
+          -t ${DOCKER_REPO}/todo-app:latest \
+          -t ${DOCKER_REPO}/todo-app:${{ github.sha }} \
+          -f Dockerfile \
+          ..
+        
+        docker push ${DOCKER_REPO}/todo-app:latest
+        docker push ${DOCKER_REPO}/todo-app:${{ github.sha }}
+        
+        echo "✅ Prod image built and pushed"
+        echo "📦 Image: ${DOCKER_REPO}/todo-app:latest"
+
+    - name: Verify wizexercise.txt in Prod Image
+      run: |
+        export DOCKER_REPO="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/wiz-prod-docker-repo"
+        echo "=== Prod wizexercise.txt content ==="
+        docker run --rm ${DOCKER_REPO}/todo-app:latest cat /app/wizexercise.txt
+
+    - name: Deploy to Prod GKE
+      run: |
+        # Get GKE credentials for prod
+        gcloud container clusters get-credentials \
+          wiz-prod-gke-cluster \
+          --region ${{ env.GCP_REGION }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+        
+        # Restart deployment to pull new image
+        kubectl rollout restart deployment/todo-app -n default
+        
+        # Wait for rollout to complete
+        kubectl rollout status deployment/todo-app -n default --timeout=5m
+        
+        echo "✅ Prod deployment updated"
+
+    - name: Verify Prod Deployment
+      run: |
+        # Get prod credentials again to be sure
+        gcloud container clusters get-credentials \
+          wiz-prod-gke-cluster \
+          --region ${{ env.GCP_REGION }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+        
+        echo "=== Prod Pods ==="
+        kubectl get pods -l app=todo-app -n default
+        
+        echo "=== Prod wizexercise.txt from running pod ==="
+        POD_NAME=$(kubectl get pods -l app=todo-app -n default -o jsonpath='{.items[0].metadata.name}')
+        kubectl exec $POD_NAME -n default -- cat /app/wizexercise.txt
+        
+        echo "=== Prod Ingress IP ==="
+        kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+        echo ""
+
+    - name: Deployment Summary
+      run: |
+        echo "========================================"
+        echo "🎉 DEPLOYMENT COMPLETE"
+        echo "========================================"
+        echo ""
+        echo "✅ Preprod: Image built, pushed, and deployed"
+        echo "✅ Prod: Image built, pushed, and deployed"
+        echo ""
+        echo "📝 To verify:"
+        echo "  - Check preprod: http://34.63.242.78"
+        echo "  - Check prod: http://34.132.171.37"
+        echo ""
+        echo "🔍 View wizexercise.txt in running pods:"
+        echo "  Preprod: kubectl exec \$(kubectl get pods -l app=todo-app -o jsonpath='{.items[0].metadata.name}') -- cat /app/wizexercise.txt"
+        echo "  Prod: Same command after switching to prod cluster"
