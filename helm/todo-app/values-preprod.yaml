@@ -1,0 +1,98 @@
+# ============================================
+# Preprod Environment - WITH VULNERABILITIES
+# ============================================
+
+replicaCount: 2
+
+image:
+  repository: us-central1-docker.pkg.dev/clgcporg10-158/wiz-preprod-docker-repo/todo-app
+  pullPolicy: Always
+  tag: "latest"
+
+serviceAccount:
+  create: true
+  name: todo-app-sa
+
+# VULNERABLE: Cluster-admin role
+rbac:
+  create: true
+  clusterRole: cluster-admin  # INTENTIONAL VULNERABILITY
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+  
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Basic health checks
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# MongoDB connection
+mongodb:
+  host: ""  # Set via --set
+  port: 27017
+  database: go-mongodb
+  username: todoapp
+  password: ""  # Set via --set
+
+# JWT configuration
+jwt:
+  secret: ""  # Set via --set
+
+# Environment configuration
+env:
+  APP_ENV: production
+  LOG_LEVEL: info
+
+# NO security context (vulnerable)
+podSecurityContext: {}
+
+securityContext: {}
+
+# NO network policies (vulnerable)
+networkPolicy:
+  enabled: false
+
+# Annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+
+# Node selection
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

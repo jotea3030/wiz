@@ -1,0 +1,85 @@
+# Production Environment - SECURE CONFIGURATION
+replicaCount: 3
+
+image:
+  repository: us-central1-docker.pkg.dev/clgcporg10-158/wiz-prod-docker-repo/todo-app
+  pullPolicy: Always
+  tag: "latest"
+
+serviceAccount:
+  create: true
+  name: todo-app-sa
+
+# SECURE: No RBAC role needed for this simple app
+rbac:
+  create: false
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 5
+
+mongodb:
+  host: ""
+  port: 27017
+  database: go-mongodb
+  username: todoapp
+  password: ""
+
+jwt:
+  secret: ""
+
+env:
+  APP_ENV: production
+  LOG_LEVEL: warn
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
