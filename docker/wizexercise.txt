@@ -26,27 +26,3 @@ This deployment demonstrates:
 ✓ CI/CD pipeline with GitHub Actions
 ✓ Intentional security misconfigurations
 ✓ Cloud security monitoring with Wiz
-
-===============================================
-KEY COMPONENTS
-===============================================
-
-Frontend:
-- Golang Todo application
-- Containerized with Docker
-- Deployed on GKE private cluster
-- Exposed via NGINX Ingress
-
-Database:
-- MongoDB 4.4.x (intentionally outdated)
-- Running on Ubuntu 20.04 VM
-- Automated daily backups to GCS
-
-Security Findings:
-- SSH exposed to internet (0.0.0.0/0)
-- Public GCS bucket with backups
-- Overly permissive IAM roles
-- Cluster-admin Kubernetes permissions
-- Outdated software versions
-
-===============================================
