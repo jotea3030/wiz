@@ -15,14 +15,3 @@ To verify this file exists in the running container:
 
 kubectl exec <pod-name> -- cat /app/wizexercise.txt
 
-===============================================
-ARCHITECTURE OVERVIEW
-===============================================
-
-This deployment demonstrates:
-✓ Two-tier web application (Golang + MongoDB)
-✓ Kubernetes orchestration with GKE
-✓ Infrastructure as Code with Terraform
-✓ CI/CD pipeline with GitHub Actions
-✓ Intentional security misconfigurations
-✓ Cloud security monitoring with Wiz
